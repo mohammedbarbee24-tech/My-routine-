@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>جدول الصحة والطاقة - تطبيق احترافي</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  direction: rtl;
+  background: linear-gradient(to bottom, #d0f0ff, #ffffff);
+  color: #333;
+  padding: 15px;
+  margin:0;
+}
+h1,h2,h3 { text-align:center; color:#004080; margin-bottom:10px; }
+table { width:100%; border-collapse: collapse; font-size:18px; margin-bottom:15px; border-radius:8px; overflow:hidden; }
+th, td { border: 1px solid #888; padding:10px; text-align:right; }
+th { background-color:#99ccff; color:#000; }
+td { background-color:#f2f9ff; }
+.today { background-color:#fff599 !important; font-weight:bold; color:#000; }
+.task { margin:12px 0; font-size:18px; display:flex; align-items:center; justify-content:space-between; padding:8px; background:#e0f0ff; border-radius:8px; }
+.task button { padding:6px 12px; background:#004080; color:white; border:none; border-radius:6px; cursor:pointer; font-size:16px; transition: transform 0.2s; }
+.task button:disabled { background-color:#999; cursor:default; }
+.task button:active { transform: scale(1.1); }
+.message-popup {
+  position: fixed; top: 20%; left: 50%; transform: translateX(-50%); 
+  background:#00bfff; color:white; padding:15px 25px; border-radius:12px; font-size:18px; text-align:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3); display:none; z-index:1000;
+  animation: popupAnim 0.5s ease forwards;
+}
+@keyframes popupAnim { 0% {opacity:0; transform: translate(-50%, -20px) scale(0.8);} 100% {opacity:1; transform: translate(-50%,0) scale(1);} }
+.stats { text-align:center; margin-top:12px; font-size:18px; font-weight:bold; color:#004080; }
+.progress-bar { width:80%; height:20px; background:#ccc; border-radius:10px; margin:10px auto; overflow:hidden; }
+.progress { height:100%; width:0%; transition: width 0.5s, background 0.5s; }
+.bubble {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #00ff80, #00bfff);
+  opacity: 0.8;
+  pointer-events: none;
+  animation: floatUp 1.5s ease-out forwards;
+}
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(1); opacity:0.8; }
+  100% { transform: translateY(-100px) scale(1.5); opacity:0; }
+}
+@media (max-width:600px) { table, th, td, .task, button, .stats { font-size:14px; } }
+</style>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js')
+  .then(()=>console.log('Service Worker مسجل بنجاح'))
+  .catch(err=>console.log('خطأ في تسجيل Service Worker:', err));
+}
+</script>
+</head>
+<body>
+<h1>جدول الصحة والطاقة</h1>
+<table id="weeklyTable">
+<tr><th>اليوم</th><th>وجبة ليلية مفيدة</th><th>راحة للجسم</th><th>نشاط خفيف</th></tr>
+<tr data-day="1"><td>1</td><td>🥚 بيضة مسلوقة + 🥒 خيار + 🥛 كوب لبن</td><td>قلل عن المعتاد، حاول تأجل 24 ساعة</td><td>مشي 10 دقائق أو تمارين تمدد</td></tr>
+<tr data-day="2"><td>2</td><td>🐟 نصف علبة تونة + 🍅 طماطم + 🥕 جزرة</td><td>كل يومين</td><td>تمارين بسيطة للذراعين والظهر 10 دقائق</td></tr>
+<tr data-day="3"><td>3</td><td>🥔 نصف بطاطس مسلوقة + 🥚 بيضة + رشة ملح</td><td>كل يومين</td><td>مشي 10–15 دقيقة</td></tr>
+<tr data-day="4"><td>4</td><td>🫘 عدس مسلوق (كوب صغير) + 🥒 خيار/خس + 🥛 حليب</td><td>كل 3 أيام</td><td>تمارين تمدد + نفس عميق</td></tr>
+<tr data-day="5"><td>5</td><td>🥚 2 بيض (مسلوق أو مقلي خفيف) + 🥗 خضار مقطعة</td><td>كل 3 أيام</td><td>مشي قصير بعد الشغل</td></tr>
+<tr data-day="6"><td>6</td><td>🐟 تونة + 🍋 عصرة ليمون + 🥬 خس أو خيار</td><td>كل 4 أيام</td><td>تمارين بسيطة أو حركة خفيفة</td></tr>
+<tr data-day="7"><td>7</td><td>🥛 كوب لبن/زبادي + 🥜 فول سوداني + 🍎 فاكهة</td><td>كل 4 أيام</td><td>استرخاء + شرب ماء دافئ قبل النوم</td></tr>
+</table>
+
+<h2>متابعة مهام اليوم</h2>
+<div class="task">🥚 وجبة ليلية مفيدة <button onclick="completeTask(this,'meal')">تم ✅</button></div>
+<div class="task">🏃‍♂️ نشاط خفيف <button onclick="completeTask(this,'activity')">تم ✅</button></div>
+<div class="task">💤 راحة للجسم <button onclick="completeTask(this,'rest')">تم ✅</button></div>
+
+<div class="message-popup" id="messagePopup"></div>
+<div class="stats" id="dailyStats"></div>
+<div class="stats" id="weeklyStats"></div>
+<div class="progress-bar"><div class="progress" id="progress"></div></div>
+
+<script>
+const today=new Date();
+const dayOfWeek=today.getDay();
+const currentDay=dayOfWeek===0?7:dayOfWeek;
+document.querySelectorAll('#weeklyTable tr[data-day]').forEach(row=>{ if(parseInt(row.getAttribute('data-day'))===currentDay) row.classList.add('today'); });
+
+const taskKeys=['meal','activity','rest'];
+taskKeys.forEach(key=>{ if(localStorage.getItem('done_'+currentDay+'_'+key)==='done') document.querySelector(`[onclick*="${key}"]`).disabled=true; });
+
+function updateStats(){
+  let dailyDone=0; taskKeys.forEach(key=>{ if(localStorage.getItem('done_'+currentDay+'_'+key)==='done') dailyDone++; });
+  document.getElementById('dailyStats').innerText=`المهام المنجزة اليوم: ${dailyDone}/3`;
+  let weekDone=0;
+  for(let d=1;d<=7;d++){ taskKeys.forEach(key=>{ if(localStorage.getItem('done_'+d+'_'+key)==='done') weekDone++; }); }
+  let totalTasks=7*3; let percentage=Math.round((weekDone/totalTasks)*100);
+  document.getElementById('weeklyStats').innerText=`نسبة الالتزام الأسبوعية: ${percentage}%`;
+  const progressBar=document.getElementById('progress');
+  progressBar.style.width=percentage+'%';
+  progressBar.style.background=`linear-gradient(to right,#004080,${percentage>50?'#00ff80':'#00bfff'})`;
+}
+
+function showPopup(msg){
+  const popup=document.getElementById('messagePopup');
+  popup.innerText=msg; popup.style.display='block';
+  setTimeout(()=>{ popup.style.display='none'; },3000);
+}
+
+function createBubbles(button){
+  const rect = button.getBoundingClientRect();
+  for(let i=0;i<8;i++){
+    const bubble=document.createElement('div');
+    bubble.classList.add('bubble');
+    bubble.style.left=(rect.left + rect.width/2 + (Math.random()*30-15))+'px';
+    bubble.style.top=(rect.top + window.scrollY)+'px';
+    document.body.appendChild(bubble);
+    setTimeout(()=>{ bubble.remove(); },1500);
+  }
+}
+
+function completeTask(button,key){
+  button.disabled=true;
+  localStorage.setItem('done_'+currentDay+'_'+key,'done');
+  const messages=["ممتاز! جسمك يستعيد طاقته 💪","أحسنت! يومك يسير على الطريق الصحيح 🌟","رائع! التزامك يبني جسم صحي 🌿","استمر! كل خطوة صغيرة مهمة 🔥"];
+  const msg=messages[Math.floor(Math.random()*messages.length)];
+  showPopup(msg);
+  createBubbles(button);
+  updateStats();
+}
+
+updateStats();
+
+function dailyReminder(){
+  let undoneTasks=taskKeys.filter(key=>localStorage.getItem('done_'+currentDay+'_'+key)!=='done');
+  if(undoneTasks.length>0){
+    let reminderMsgs=[];
+    if(undoneTasks.includes('meal')) reminderMsgs.push("🥚 حان وقت وجبتك الليلية المفيدة!");
+    if(undoneTasks.includes('activity')) reminderMsgs.push("🏃‍♂️ تذكر نشاطك الخفيف اليوم!");
+    if(undoneTasks.includes('rest')) reminderMsgs.push("💤 لا تنسى راحة جسمك اليوم!");
+    showPopup(reminderMsgs.join(" | "));
+  }
+}
+window.onload=dailyReminder;
+</script>
+</body>
+</html>
